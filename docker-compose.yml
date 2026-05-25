@@ -1,0 +1,173 @@
+services:
+  auth-db:
+    image: postgres:16-alpine
+    
+    environment:
+      POSTGRES_USER: auth_db
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: auth_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./auth-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_db -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build:
+      context: auth-service
+      dockerfile: Dockerfile
+    env_file:
+      - auth-service/.env
+    ports:
+      - "8001:8001"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider",  "http://host.docker.internal:8001/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s   # grace period before failures count        
+
+  flag-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: flag_db
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: flag_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./flag-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - flag-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flag_db -d flag_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s   # grace period before failures count      
+
+  flag-service:
+    build:
+      context: flag-service
+      dockerfile: Dockerfile
+    env_file:
+      - flag-service/.env
+    ports:
+      - "8002:8002"
+    depends_on:
+      flag-db:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8002/health').status==200 else 1)"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s   # grace period before failures count
+
+  targeting-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: targeting_db
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: targeting_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - ./targeting-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - targeting-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U targeting_db -d targeting_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s   # grace period before failures count        
+
+  targeting-service:
+    build:
+      context: targeting-service
+      dockerfile: Dockerfile    
+    env_file:
+      - targeting-service/.env
+    ports:
+      - "8003:8003"
+    depends_on:
+      targeting-db:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy        
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8003/health').status==200 else 1)"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s   # grace period before failures count
+
+  evaluation-redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - evaluation-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  evaluation-service:
+    build:
+      context: evaluation-service
+      dockerfile: Dockerfile
+    env_file:
+      - evaluation-service/.env
+    ports:
+      - "8004:8004"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider",  "http://host.docker.internal:8004/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s   # grace period before failures count      
+    depends_on:
+      evaluation-redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      flag-service:
+        condition: service_healthy        
+      targeting-service:
+        condition: service_healthy
+
+  analytics-service:
+    build:
+      context: analytics-service
+      dockerfile: Dockerfile    
+    env_file:
+      analytics-service/.env
+    ports:
+      - "8005:8005"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      flag-service:
+        condition: service_healthy        
+      targeting-service:
+        condition: service_healthy      
+      evaluation-service:
+        condition: service_healthy        
+
+volumes:
+  flag-db-data:        
+  auth-db-data:
+  targeting-db-data:
+  evaluation-redis-data:
+  analytics-db-data:   
