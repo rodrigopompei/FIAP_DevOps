@@ -1,0 +1,123 @@
+
+
+kubectl apply -f k8s/auth-service/
+kubectl -n togglemaster rollout status deployment/auth-service
+
+
+deploy.sh now applies namespace.yaml → each service folder → ingress.yaml. The old flat 01-secrets.yaml etc. are deleted. All 21 YAML files parse cleanly. README.md updated with the new tree.
+
+
+
+Next time you rotate creds: edit k8s/shared/aws-credentials.yaml, then:
+
+
+kubectl apply -f k8s/shared/
+kubectl -n togglemaster rollout restart deployment/evaluation-service deployment/analytics-service
+
+
+
+==============================
+
+curl -X POST http://auth.toggle.local/admin/keys \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer admin-secreto-123" \
+-d '{"name": "meu-primeiro-servico"}'
+
+{"name":"meu-primeiro-servico","key":"tm_key_da8a1a3671b2f318eecc11e2ce059f30d2c64574d482d7a01ae336a68a53f54a","message":"Guarde esta chave com segurança! Você não poderá vê-la novamente."}
+
+
+curl http://auth.toggle.local/validate \
+-H "Authorization: Bearer tm_key_da8a1a3671b2f318eecc11e2ce059f30d2c64574d482d7a01ae336a68a53f54a"
+
+
+curl -X POST http://flags.toggle.local/flags \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer tm_key_da8a1a3671b2f318eecc11e2ce059f30d2c64574d482d7a01ae336a68a53f54a" \
+-d '{
+    "name": "enable-new-dashboard",
+    "description": "Ativa o novo dashboard para usuários",
+    "is_enabled": true
+}'
+
+{"created_at":"Fri, 29 May 2026 23:00:59 GMT","description":"Ativa o novo dashboard para usu\u00e1rios","id":1,"is_enabled":true,"name":"enable-new-dashboard","updated_at":"Fri, 29 May 2026 23:00:59 GMT"}
+
+curl -X POST http://targeting.toggle.local/rules \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer tm_key_da8a1a3671b2f318eecc11e2ce059f30d2c64574d482d7a01ae336a68a53f54a" \
+-d '{
+    "flag_name": "enable-new-dashboard",
+    "is_enabled": true,
+    "rules": {
+        "type": "PERCENTAGE",
+        "value": 50
+    }
+}'
+
+{"created_at":"Fri, 29 May 2026 23:05:10 GMT","flag_name":"enable-new-dashboard","id":1,"is_enabled":true,"rules":{"type":"PERCENTAGE","value":50},"updated_at":"Fri, 29 May 2026 23:05:10 GMT"}
+
+
+curl "http://eval.toggle.local/evaluate?user_id=user-123&flag_name=enable-new-dashboard"
+
+{"flag_name":"enable-new-dashboard","user_id":"user-123","result":true}
+
+
+
+docker build -f evaluation-service/Dockerfile.k8s \
+  -t togglemaster/evaluation-service:k8s evaluation-service
+
+
+==============================
+auth-service
+
+curl -X POST http://localhost:8001/admin/keys \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer admin-secreto-123" \
+-d '{"name": "admin-para-flag-service"}'
+
+tm_key_6fa3f818488d53d42664ed08db18411dfe506728aeb68b33acfa93f413f5ed05
+
+===============================
+flag-service
+
+curl -X POST http://localhost:8002/flags \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer tm_key_6fa3f818488d53d42664ed08db18411dfe506728aeb68b33acfa93f413f5ed05" \
+-d '{
+    "name": "enable-new-dashboard",
+    "description": "Ativa o novo dashboard para usuários",
+    "is_enabled": true
+}'
+
+{"created_at":"Wed, 27 May 2026 22:32:54 GMT","description":"Ativa o novo dashboard para usu\u00e1rios","id":1,"is_enabled":true,"name":"enable-new-dashboard","updated_at":"Wed, 27 May 2026 22:32:54 GMT"}
+
+===============================
+targeting-service
+
+curl -X POST http://localhost:8003/rules \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer tm_key_6fa3f818488d53d42664ed08db18411dfe506728aeb68b33acfa93f413f5ed05" \
+-d '{
+    "flag_name": "enable-new-dashboard",
+    "is_enabled": true,
+    "rules": {
+        "type": "PERCENTAGE",
+        "value": 50
+    }
+}'
+
+{"created_at":"Wed, 27 May 2026 22:35:40 GMT","flag_name":"enable-new-dashboard","id":1,"is_enabled":true,"rules":{"type":"PERCENTAGE","value":50},"updated_at":"Wed, 27 May 2026 22:35:40 GMT"}
+
+===============================
+evaluation-service
+
+
+curl "http://localhost:8004/evaluate?user_id=user-123&flag_name=enable-new-dashboard"
+
+
+
+===============================
+analytics-service
+
+
+
+{"flag_name":"enable-new-dashboard","user_id":"user-123","result":true}

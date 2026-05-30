@@ -1,0 +1,61 @@
+# Host-based routing. Add to /etc/hosts:
+#   127.0.0.1  auth.toggle.local flags.toggle.local targeting.toggle.local eval.toggle.local analytics.toggle.local
+# Requires the nginx ingress controller (see k8s/README.md).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: togglemaster-ingress
+  namespace: togglemaster
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: auth.toggle.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 8001
+    - host: flags.toggle.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: flag-service
+                port:
+                  number: 8002
+    - host: targeting.toggle.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: targeting-service
+                port:
+                  number: 8003
+    - host: eval.toggle.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: evaluation-service
+                port:
+                  number: 8004
+    - host: analytics.toggle.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: analytics-service
+                port:
+                  number: 8005

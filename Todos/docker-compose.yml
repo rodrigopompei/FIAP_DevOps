@@ -1,0 +1,108 @@
+services:
+  auth-service:
+    build:
+      context: auth-service
+      dockerfile: Dockerfile
+    env_file:
+      - auth-service/.env
+    ports:
+      - "8001:8001"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider",  "http://localhost:8001/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s   # grace period before failures count        
+
+  flag-service:
+    build:
+      context: flag-service
+      dockerfile: Dockerfile
+    env_file:
+      - flag-service/.env
+    ports:
+      - "8002:8002"
+    volumes:
+      - flag-db-data:/var/lib/postgresql/data
+    depends_on:
+      auth-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8002/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s   # grace period before failures count
+
+  targeting-service:
+    build:
+      context: targeting-service
+      dockerfile: Dockerfile
+    env_file:
+      - targeting-service/.env
+    ports:
+      - "8003:8003"
+    volumes:
+      - targeting-db-data:/var/lib/postgresql/data
+    depends_on:
+      auth-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8003/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s   # grace period before failures count
+
+  evaluation-service:
+    build:
+      context: evaluation-service
+      dockerfile: Dockerfile
+    env_file:
+      - evaluation-service/.env
+    ports:
+      - "8004:8004"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8004/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      flag-service:
+        condition: service_healthy
+      targeting-service:
+        condition: service_healthy
+
+  analytics-service:
+    build:
+      context: analytics-service
+      dockerfile: Dockerfile
+    env_file:
+      - analytics-service/.env
+    ports:
+      - "8005:8005"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8005/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      flag-service:
+        condition: service_healthy
+      targeting-service:
+        condition: service_healthy
+      evaluation-service:
+        condition: service_healthy
+
+volumes:
+  auth-db-data:
+  flag-db-data:
+  targeting-db-data:
