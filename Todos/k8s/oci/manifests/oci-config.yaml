@@ -1,0 +1,22 @@
+# Shared OCI backend coordinates, consumed by eval-service and analytics-service
+# via envFrom. This REPLACES shared/aws-credentials.yaml — no static keys here:
+# the pods authenticate to OCI Queue/NoSQL with INSTANCE PRINCIPALS (the worker
+# nodes' identity, granted by the dynamic group + policy in 01-provision-*).
+#
+# 03-deploy-oci.sh regenerates this ConfigMap from your exported env vars, so you
+# normally don't edit it by hand. Values shown are placeholders.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oci-config
+  namespace: togglemaster
+data:
+  OCI_REGION: "us-ashburn-1"
+  OCI_COMPARTMENT_OCID: "ocid1.compartment.oc1..REPLACE"
+  # OCI Queue (replaces AWS SQS)
+  OCI_QUEUE_ID: "ocid1.queue.oc1..REPLACE"
+  OCI_QUEUE_MESSAGES_ENDPOINT: "https://cell-1.queue.messaging.us-ashburn-1.oci.oraclecloud.com"
+  # OCI NoSQL (replaces DynamoDB)
+  OCI_NOSQL_TABLE: "ToggleMasterAnalytics"
+  # Tells the SDK clients to use instance principals (no key files).
+  OCI_AUTH: "instance_principal"

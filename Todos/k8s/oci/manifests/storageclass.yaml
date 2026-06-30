@@ -1,0 +1,19 @@
+# OKE ships an `oci-bv` StorageClass (provisioner blockvolume.csi.oraclecloud.com)
+# out of the box, so you usually do NOT need this file. It's here as a fallback
+# for clusters where it was removed, and to document the settings the DB
+# StatefulSets rely on.
+#
+# IMPORTANT: OCI Block Volumes have a 50 GiB MINIMUM. The DB manifests therefore
+# request 50Gi (the EKS version asked for 1Gi, which OCI would reject).
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: oci-bv
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: blockvolume.csi.oraclecloud.com
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+parameters:
+  vpusPerGB: "10"   # balanced performance tier

@@ -24,7 +24,7 @@ kubectl apply -f "$SCRIPT_DIR/shared/"
 #   kubectl apply -f "$SCRIPT_DIR/$svc/"
 # done
 
-echo ">> Applying auth-service manifests"
+echo ">> Applying services manifests"
 for svc in auth-service flag-service targeting-service evaluation-service analytics-service; do
   echo "   - $svc"
   kubectl apply -f "$SCRIPT_DIR/$svc/"

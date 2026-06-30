@@ -1,0 +1,73 @@
+# OCI variant of evaluation-service. Differences from the base manifest:
+#   - EVENT_BACKEND=ociqueue  -> the Go binary publishes to OCI Queue, not SQS
+#   - no aws-credentials secret; OCI auth is via instance principals (oci-config)
+#   - OCI queue coordinates come from the shared oci-config ConfigMap
+#   - imagePullSecrets: ocirsecret (created by 02-ocir-push.sh)
+# The image is repointed to OCIR by 03-deploy-oci.sh (kubectl set image).
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evaluation-service-config
+  namespace: togglemaster
+data:
+  PORT: "8004"
+  REDIS_URL: "redis://evaluation-redis:6379"
+  FLAG_SERVICE_URL: "http://flag-service:8002"
+  TARGETING_SERVICE_URL: "http://targeting-service:8003"
+  EVENT_BACKEND: "ociqueue"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: evaluation-service
+  namespace: togglemaster
+spec:
+  selector:
+    app: evaluation-service
+  ports:
+    - port: 8004
+      targetPort: 8004
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evaluation-service
+  namespace: togglemaster
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: evaluation-service
+  template:
+    metadata:
+      labels:
+        app: evaluation-service
+    spec:
+      imagePullSecrets:
+        - name: ocirsecret
+      containers:
+        - name: evaluation-service
+          image: togglemaster/evaluation-service:oci   # overridden by 03-deploy-oci.sh
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8004
+          envFrom:
+            - configMapRef:
+                name: evaluation-service-config
+            - configMapRef:
+                name: oci-config
+            - secretRef:
+                name: evaluation-service-secret
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 30
+            periodSeconds: 10
