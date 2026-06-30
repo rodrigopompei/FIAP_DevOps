@@ -1,0 +1,20 @@
+[submodule "Todos/analytics-service"]
+	path = Todos/analytics-service
+	url = https://github.com/FIAP-TCs/analytics-service.git
+	branch = main
+[submodule "Todos/auth-service"]
+	path = Todos/auth-service
+	url = https://github.com/FIAP-TCs/auth-service.git
+	branch = main
+[submodule "Todos/evaluation-service"]
+	path = Todos/evaluation-service
+	url = https://github.com/FIAP-TCs/evaluation-service.git
+	branch = main
+[submodule "Todos/flag-service"]
+	path = Todos/flag-service
+	url = https://github.com/FIAP-TCs/flag-service.git
+	branch = main
+[submodule "Todos/targeting-service"]
+	path = Todos/targeting-service
+	url = https://github.com/FIAP-TCs/targeting-service.git
+	branch = main
