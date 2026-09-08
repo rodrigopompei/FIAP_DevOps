@@ -1,0 +1,43 @@
+# EKS cluster for ToggleMaster on AWS Academy *Learner Lab*.
+#
+# Learner Lab forbids creating IAM roles and OIDC providers, so this config:
+#   - reuses the existing LabRole for BOTH the cluster service role and the
+#     node group instance role (no role creation),
+#   - disables OIDC/IRSA (withOIDC: false),
+#   - lets the aws-ebs-csi-driver addon run off the node's LabRole instead of a
+#     dedicated IRSA role.
+#
+# Account 294296614030 is the Learner Lab account (also owns the SQS queue).
+# If your account number differs, replace it below (or sed it in CI).
+#
+#   eksctl create cluster -f eksctl-cluster.yaml
+#
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: togglemaster
+  region: us-east-1
+  version: "1.30"
+
+iam:
+  withOIDC: false
+  # Existing Learner Lab role — eksctl will NOT try to create one.
+  serviceRoleARN: arn:aws:iam::294296614030:role/LabRole
+
+managedNodeGroups:
+  - name: ng-default
+    instanceType: t3.medium
+    desiredCapacity: 2
+    minSize: 2
+    maxSize: 3
+    volumeSize: 30
+    # Reuse LabRole as the node instance role (no role creation).
+    iam:
+      instanceRoleARN: arn:aws:iam::294296614030:role/LabRole
+
+# Managed addon for dynamic EBS-backed PVCs (the three Postgres StatefulSets).
+# No serviceAccountRoleARN -> the driver uses the node role (LabRole), which is
+# required because OIDC/IRSA is disabled in Learner Lab.
+addons:
+  - name: aws-ebs-csi-driver

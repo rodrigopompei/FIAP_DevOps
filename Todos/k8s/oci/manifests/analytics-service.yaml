@@ -1,0 +1,68 @@
+# OCI variant of analytics-service. Differences from the base manifest:
+#   - EVENT_BACKEND=ociqueue -> consumes from OCI Queue (not SQS) and writes to
+#     OCI NoSQL (not DynamoDB). Runs the app_oci.py entrypoint (Dockerfile.oci).
+#   - no aws-credentials secret; OCI auth via instance principals (oci-config)
+#   - imagePullSecrets: ocirsecret
+# Image repointed to OCIR by 03-deploy-oci.sh.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: analytics-service-config
+  namespace: togglemaster
+data:
+  PORT: "8005"
+  EVENT_BACKEND: "ociqueue"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: analytics-service
+  namespace: togglemaster
+spec:
+  selector:
+    app: analytics-service
+  ports:
+    - port: 8005
+      targetPort: 8005
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-service
+  namespace: togglemaster
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: analytics-service
+  template:
+    metadata:
+      labels:
+        app: analytics-service
+    spec:
+      imagePullSecrets:
+        - name: ocirsecret
+      containers:
+        - name: analytics-service
+          image: togglemaster/analytics-service:oci   # overridden by 03-deploy-oci.sh
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8005
+          envFrom:
+            - configMapRef:
+                name: analytics-service-config
+            - configMapRef:
+                name: oci-config
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8005
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8005
+            initialDelaySeconds: 30
+            periodSeconds: 10
