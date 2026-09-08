@@ -18,3 +18,6 @@
 	path = Todos/targeting-service
 	url = https://github.com/FIAP-TCs/targeting-service.git
 	branch = main
+[submodule "Phase-3/Entregas_Phase/fiap-fase2-tmm-docker"]
+	path = Phase-3/Entregas_Phase/fiap-fase2-tmm-docker
+	url = https://github.com/rodrigopompei/FIAP_DevOps
